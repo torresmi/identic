@@ -1,0 +1,48 @@
+(ns duplicates.core
+  (:require [cljs.nodejs :as nodejs]))
+
+(def path (nodejs/require "path"))
+
+(def electron (nodejs/require "electron"))
+
+(def os (nodejs/require "os"))
+
+(def *win* (atom nil))
+
+(def app (.-app electron))
+
+(def browser-window (.-BrowserWindow electron))
+
+(def crash-reporter (.-crashReporter electron))
+
+(defn -main []
+  (.start crash-reporter (clj->js {:companyName ""
+                                   :submitURL   "https://github.com/torresmi/identic.git"}))
+
+  ;; error listener
+  (.on nodejs/process "error"
+       (fn [err] (.log js/console err)))
+
+  ;; window all closed listener
+  (.on app "window-all-closed"
+       (fn [] (if (not= (.-platform nodejs/process) "darwin")
+                (.quit app))))
+
+  ;; ready listener
+  (.on app "ready"
+       (fn []
+         (reset! *win* (browser-window. (clj->js {:width 800 :height 600 :minWidth 700 :minHeight 500})))
+
+         ;; when no optimize comment out
+         (.loadURL @*win* (str "file://" (.resolve path (js* "__dirname") "../index.html")))
+         ;; when no optimize uncomment
+         ;; (.loadURL @*win* (str "file://" (.resolve path (js* "__dirname") "../../../index.html")))
+
+         (.on @*win* "closed" (fn [] (reset! *win* nil))))))
+
+(nodejs/enable-util-print!)
+
+;;; "Linux" or "Darwin" or "Windows_NT"
+(.log js/console (str "Start descjop application on " (.type os) "."))
+
+(set! *main-cli-fn* -main)
